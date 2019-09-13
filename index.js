@@ -19,7 +19,7 @@ expressApp.use(bodyParser.json());
 
 expressApp.get('/*', function(request, response) {
     console.log('incoming GET - should be testing only!');
-    response.send('hello!');
+    response.send('hello V2!');
 });
 
 // main incoming call
