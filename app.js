@@ -21,7 +21,7 @@ expressApp.use(bodyParser.json({
 
 expressApp.get('/*', function(request, response) {
     console.log('incoming GET - should be testing only!');
-    response.send('Hello from V2!!');
+    response.send('Hello from V2 at ' + new Date().toLocaleString());
 });
 
 // main incoming call

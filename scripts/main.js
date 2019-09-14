@@ -1,4 +1,4 @@
-const App = require('actions-on-google').ApiAiApp;
+const DialogflowApp = require('actions-on-google').DialogflowApp;
 const moment = require('moment-timezone');
 
 const badiCalc = require('./badiCalc');
@@ -9,6 +9,7 @@ const dbHelper = require('./db');
 
 console.log(' ');
 console.log('======= SERVER RESTARTED ==============================');
+
 
 var knownUsers = null;
 
@@ -24,13 +25,15 @@ function handlePost(request, response) {
     var now = new Date();
     var body = request.body;
 
-    // console.log(request)
     // console.log('address', request.connection.remoteAddress)
 
     console.log('\r\n\r\n---------------------------');
     console.log('------ incoming POST ------');
     console.log(`---${now.toLocaleTimeString()}---`);
-    const app = new App({
+
+    console.log(request);
+
+    const app = new DialogflowApp({
         request: request,
         response: response
     });
