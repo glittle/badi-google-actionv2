@@ -15,15 +15,19 @@ let expressApp = express();
 expressApp.set('port', (process.env.PORT || 8006));
 
 let bodyParser = require('body-parser');
-expressApp.use(bodyParser.json());
+expressApp.use(bodyParser.json({
+    type: 'application/json'
+}));
 
 expressApp.get('/*', function(request, response) {
     console.log('incoming GET - should be testing only!');
-    response.send('hello V2!');
+    response.send('Hello from V2!!');
 });
 
 // main incoming call
-expressApp.post('/', main.app);
+expressApp.post('/', function(request, response) {
+    main.handlePost(request, response);
+});
 
 // Start the server
 let server = expressApp.listen(expressApp.get('port'), function() {
