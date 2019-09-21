@@ -1,4 +1,4 @@
-# The Wondrous Calendar
+# The Badíʿ Calendar
 
-Check out this Action on Google by asking for "the Wondrous Calendar"
+Check out this Action on Google by asking for "the Badíʿ Calendar"
 

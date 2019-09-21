@@ -8,20 +8,17 @@ function forNow(mDate, morningOrEvening) {
         mDate.hour() >= 14; // 3 pm and later?
     var dayVerses = verses[key];
 
-    console.log('verse', mDate.format(), mDate.hour(), key, forEvening, dayVerses)
+    // console.log('verse', mDate.format(), mDate.hour(), key, forEvening, dayVerses)
 
     if (dayVerses) {
-        forEvening
         var verseInfo = dayVerses[forEvening ? 'pm' : 'am'];
 
         if (verseInfo) {
-            forEvening
             return {
                 suffix: `Bahá'u'lláh, ${verseInfo.r}`,
                 forEvening: forEvening,
                 verse: verseInfo.q
             }
-            forEvening
         }
     }
     return {};

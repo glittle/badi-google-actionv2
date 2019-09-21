@@ -1,6 +1,24 @@
-const DialogflowApp = require('actions-on-google').DialogflowApp;
-const moment = require('moment-timezone');
+const {
+    dialogflow,
+    BasicCard,
+    BrowseCarousel,
+    BrowseCarouselItem,
+    Button,
+    Carousel,
+    Image,
+    LinkOutSuggestion,
+    List,
+    MediaObject,
+    Permission,
+    Suggestions,
+    SimpleResponse,
+    Table,
+} = require('actions-on-google');
 
+// const {WebhookClient} = require('dialogflow-fulfillment');
+
+const moment = require('moment-timezone');
+const util = require('util')
 const badiCalc = require('./badiCalc');
 const verseHelper = require('./verseHelper');
 const externalInfo = require('./externalInfo');
@@ -16,7 +34,12 @@ var knownUsers = null;
 dbHelper.knownUsersRef.once('value', function(snapshot) {
     knownUsers = snapshot.val() || {};
     console.log('initial load from db', Object.keys(knownUsers).length, 'users.');
-    console.log(knownUsers);
+    // console.log(knownUsers);
+});
+
+
+const appV2 = dialogflow({
+    // debug: true,
 });
 
 
@@ -24,55 +47,61 @@ function handlePost(request, response) {
 
     var now = new Date();
     var body = request.body;
+    var conv = null;
+    var userInfo = {};
+    var userId = '';
+    var userRef = {};
 
     // console.log('address', request.connection.remoteAddress)
 
     console.log('\r\n\r\n---------------------------');
     console.log('------ incoming POST ------');
     console.log(`---${now.toLocaleTimeString()}---`);
+    console.log('request body:');
+    console.log(util.inspect(request.body));
+    console.log('---------------------------');
+    // return;
+    // appV2.intent('Welcome', (conv, { name }) => {
+    //     conv.ask(`How are you?`);
+    //     console.log(conv);
+    // });
 
-    console.log(request);
+    // appV2.catch((conv, error) => {
+    //     conv.tell(`Test 123!`);
+    //     console.error(error);
+    // });
 
-    const app = new DialogflowApp({
-        request: request,
-        response: response
-    });
+    // appV2.fallback((conv) => {
+    //     console.log(conv.intent);
+    //     conv.ask(`I couldn't understand. Can you say that again and again?`);
+    // });
 
-    if (app.getArgument('is_health_check') === '1') {
-        console.log('Health Check. Doing great!')
-        app.tell(`Thanks for the health check! I'm feeling great!`)
-        return;
-    }
+    // appV2(request, response);
 
-    console.log('Intent:', app.getIntent());
-    console.log('Intent name:', body.result.metadata.intentName);
-    console.log('From:', body.originalRequest.source, " Version:", body.originalRequest.version);
-    console.log('Parameters:', body.result.parameters);
-    console.log('Body', JSON.stringify(body));
+    // return;
+    // console.log(request);
+
+    // if (appV1.getArgument('is_health_check') === '1') {
+    //     console.log('Health Check. Doing great!')
+    //     appV1.tell(`Thanks for the health check! I'm feeling great!`)
+    //     return;
+    // }
+
+    // console.log('Intent:', appV1.getIntent());
+    // console.log('Intent name:', body.result.metadata.intentName);
+    // console.log('From:', body.originalRequest.source, " Version:", body.originalRequest.version);
+    // console.log('Parameters:', body.result.parameters);
+    // console.log('Body', JSON.stringify(body));
 
     // console.log('users', knownUsers);
 
-    // determine who this is
-    var userId = general.extractUserId(app, request);
-    // console.log('userId', userId)
-    var userInfo = knownUsers[userId];
-    if (!userInfo) {
-        userInfo = knownUsers[userId] = { times: 1 };
-    }
-    console.log('userInfo', userInfo);
 
-    var userRef = dbHelper.knownUsersRef.child(userId);
 
-    var times = userInfo.times || 1;
-    userRef.update({ last_access: now, times: times })
-    userInfo.last_access = now;
-    userInfo.times = times;
-
-    // console.log(app.getUser())
+    // console.log(appV2.getUser())
 
     // try {
     //   console.log(4)
-    //   app.askForPermission('To address you by name', [app.SupportedPermissions.NAME]);
+    //   appV1.askForPermission('To address you by name', [appV1.SupportedPermissions.NAME]);
     //   console.log(5);
     // } catch (error) {
     //   console.log(3, error)
@@ -81,16 +110,20 @@ function handlePost(request, response) {
     function welcome() {
         // console.log('default welcome')
         if (!userInfo || !userInfo.coord) {
-            app.askForPermission('Hello! Welcome to the "Wondrous Calendar"!  Before we get started, to give you correct answers, ', app.SupportedPermissions.DEVICE_PRECISE_LOCATION);
+            // conv.askForPermission('Hello! Welcome to the "Badíʿ Calendar"!  Before we get started, to give you correct answers, ', conv.SupportedPermissions.DEVICE_PRECISE_LOCATION);
+            conv.ask(new Permission({
+                context: 'Hello! Welcome to the "Badíʿ Calendar"!  Before we get started, to give you correct answers, ',
+                permissions: 'DEVICE_PRECISE_LOCATION'
+            }));
             return;
-        } else {
-            // app.setContext('location_known', 99, userInfo.coord);
-            askWithoutWhatElse([
-                `allowabha! What would you like to hear? Say \'Help\' if you would like some tips!`
-            ], [
-                'Alláh-u-Abhá! What would you like to hear?\n\nSay "help" if you would like some tips!'
-            ])
         }
+
+        // app.setContext('location_known', 99, userInfo.coord);
+        askWithoutWhatElse([
+            `allowabha! What would you like to hear? Say \'Help\' if you would like some tips!`
+        ], [
+            'Alláh-u-Abhá! What would you like to hear?\n\nSay "help" if you would like some tips!'
+        ]);
     }
 
     function tellVerse() {
@@ -101,11 +134,15 @@ function handlePost(request, response) {
         tell('date');
     }
 
+    function tellDateAndVerse() {
+        tell('both');
+    }
+
     function tellDateFull() {
         var speech = [];
         var text = [];
 
-        var useArNames = body.result.parameters.language === 'arabic';
+        var useArNames = conv.parameters.language === 'arabic';
 
         badiCalc.addTodayDetails(useArNames, userInfo, speech, text);
         ask(speech, text);
@@ -130,14 +167,16 @@ function handlePost(request, response) {
     // }
 
     function tellAgain() {
-        var repeatNum = +app.getArgument('repeatNum') || 1
+        var repeatNum = +conv.parameters.repeatNum || 1
         console.log('last', repeatNum, userInfo.lastRequest);
         var lastTopic = userInfo.lastRequest || 'verse';
         tell(lastTopic, true, repeatNum)
     }
 
     function tell(topic, again, repeatNum) {
-        userRef.update({ lastRequest: topic });
+        userRef.update({
+            lastRequest: topic
+        });
         userInfo.lastRequest = topic;
 
         const voiceNormal = '<voice gender="female" variant="2">';
@@ -152,12 +191,13 @@ function handlePost(request, response) {
             badiCalc.addTodayInfoToAnswers(userInfo, speech, text);
         }
         if (topic === 'both') {
-            speech.push('<break time="3s"/>');
+            speech.push('<break time="2s"/>');
             text.push('\n')
         }
         if (topic === 'verse' || topic === 'both') {
             var now = moment.tz(userInfo.zoneName);
-            var info = verseHelper.forNow(now, body.result.parameters.verseTime);
+            console.log(conv.parameters.verseTime);
+            var info = verseHelper.forNow(now, conv.parameters.verseTime);
             if (again) {
                 repeatNum = repeatNum || 1;
                 for (var r = 0; r < repeatNum; r++) {
@@ -198,25 +238,33 @@ function handlePost(request, response) {
                 speech.push(voiceEnd);
                 speech.push(voiceNormal);
 
-                speech.push('<break time="2s"/>');
-                speech.push('(We can repeat that a number of times if you wish. Just let me know how many times!)');
-                text.push('\n  \n  \n(We can repeat that a number of times if you wish. Just let me know how many times!)');
+                if (!conv.isDeepLink) {
+                    speech.push('<break time="2s"/>');
+                    speech.push('(We can repeat that a number of times if you wish. Just let me know how many times!)');
+                    text.push('\n  \n  \n(We can repeat that a number of times if you wish. Just let me know how many times!)');
+                }
             }
         }
 
         if (speech.length <= 2) {
             general.addToBoth(`Sorry, I didn't understand that. Please try again!`, speech, text);
         } else {
-            addWhatElse(speech, text);
+            if (!conv.isDeepLink) {
+                addWhatElse(speech, text);
+            }
         }
 
         speech.push(voiceEnd);
 
         askWithoutWhatElse(speech, text);
+
+        if (conv.isDeepLink) {
+            conv.close();
+        }
     }
 
     function askWithoutWhatElse(speech, text) {
-        ask(speech, text, true)
+        ask(speech, text, true);
     }
 
     function ask(speech, text, doNotAddWhatElse) {
@@ -226,12 +274,12 @@ function handlePost(request, response) {
 
         speech = speech.join(' ');
         text = text.join(' ');
-        app.ask({
+        conv.ask(new SimpleResponse({
             speech: '<speak>' + speech + '</speak>',
-            displayText: text
-        });
-        console.log('Text', text)
-        console.log('Speech', speech)
+            text: text
+        }));
+        console.log('Text', text);
+        console.log('Speech', speech);
     }
 
     function addWhatElse(speech, text) {
@@ -250,31 +298,45 @@ function handlePost(request, response) {
     }
 
     function receiveLocation() {
-        if (app.isPermissionGranted()) {
+        const location = conv.device.location;
+        if (location) {
             /*
-                "coordinates": {
-                  "latitude": 51.1004367,
-                  "longitude": -113.95960439999999
-                }
+               Device {
+                  location:
+                   { coordinates: { latitude: 51.1000941, longitude: -113.9594449 },
+                     formattedAddress: 'Castleridge Boulevard Northeast, Calgary, Alberta ',
+                     city: 'Calgary' } }
             */
-            var coordRaw = app.getDeviceLocation().coordinates;
-            var coord = {
+            var coordRaw = location.coordinates;
+            let coord = {
                 lat: coordRaw.latitude,
                 lng: coordRaw.longitude
             };
 
-            var userInfo = knownUsers[userId];
-            userRef.update({ coord: coord });
+            let userInfo = knownUsers[userId];
             userInfo.coord = coord;
+            userInfo.location = location.city;
+            userRef.update(userInfo);
 
             externalInfo.getTimezoneInfo(userRef, userInfo);
-            externalInfo.getLocationName(userRef, userInfo);
+            // externalInfo.getLocationName(userRef, userInfo);
 
-            var msg = [`Thank you!  I've got it! What would you like to hear now?  Say Help if you want to learn what I can do.`];
+            let msg = [`Thank you! Google says you are in ${userInfo.location}. What would you like to hear now?  Say Help if you want to learn what I can do.`];
             askWithoutWhatElse(msg, msg);
 
         } else {
-            var msg = [`Sorry, I didn't catch that. Please try again!`];
+            let userInfo = knownUsers[userId];
+            let coord = {
+                lat: 32.8033872,
+                lng: 34.9858567
+            };
+            userInfo.coord = coord;
+            userInfo.location = 'Haifa';
+            userRef.update(userInfo);
+
+            externalInfo.getTimezoneInfo(userRef, userInfo);
+
+            let msg = [`Okay. I'll give you answers as if you were in Haifa Israel! The fix that later, say "Change my location".`];
             askWithoutWhatElse(msg, msg);
         }
     }
@@ -283,7 +345,7 @@ function handlePost(request, response) {
         return s.split('').join(' ');
     }
 
-    function whoAmI(app) {
+    function whoAmI() {
         //    <say-as interpret-as="characters">${spacedOut(userId)}</say-as>
         var speech = [userId !== 'sandbox' ?
             `Your user ID is ${spacedOut(userId)}<break time="2s"/> (Wow! That was quite a mouthful!)` :
@@ -299,7 +361,7 @@ function handlePost(request, response) {
     }
 
     function tellMonthNames() {
-        var lang = app.getArgument('language') || 'english';
+        var lang = conv.parameters.language || 'english';
         var doBoth = lang === 'both';
         var list = lang === 'arabic' ? badiCalc.monthsArabic : badiCalc.monthsEnglish;
 
@@ -311,7 +373,7 @@ function handlePost(request, response) {
         // if (lang === 'arabic') {
         //     speak.push('(Please excuse my pronounciation!) ')
         // }
-        general.addToBoth('Here are the names of the months in the Wondrous Calendar:\n', speech, text);
+        general.addToBoth('Here are the names of the months in the Badíʿ Calendar:\n', speech, text);
         for (var i = 1; i < list.length; i++) {
             var item = list[i];
             item = item.replace(/[`’]/g, '');
@@ -344,12 +406,19 @@ function handlePost(request, response) {
         delete userInfo.zoneName;
         userRef.set(userInfo);
 
-        app.askForPermission('Sure. ', app.SupportedPermissions.DEVICE_PRECISE_LOCATION);
+        conv.user.permissions = null;
+
+        // conv.askForPermission('Sure. ', conv.SupportedPermissions.DEVICE_PRECISE_LOCATION);
+        conv.ask(new Permission({
+            context: 'Sure. ',
+            permissions: 'DEVICE_PRECISE_LOCATION',
+        }));
     }
 
     function tellLocation() {
         var speech = [];
         var text = [];
+        var known = false;
         if (userInfo.location) {
             speech.push(`From what I've learned, you are in ${userInfo.location}.`);
             text.push(`From what I've learned, you are in ${userInfo.location}.`);
@@ -372,6 +441,10 @@ function handlePost(request, response) {
             speech.push(`I don't know what timezone you are in.`);
             text.push(`I don't know what timezone you are in.`);
         }
+
+        let msg = `To update this, say "Change my location".`;
+        speech.push(msg);
+        text.push(msg);
 
         ask(speech, text);
     }
@@ -421,7 +494,34 @@ function handlePost(request, response) {
 
         badiCalc.addSunTimes(userInfo, speech, text);
 
-        ask(speech, text);
+        ask(speech, text, conv.isDeepLink);
+
+        if (conv.isDeepLink) {
+            conv.close();
+        }
+    }
+
+    function getUserInfo() {
+        // determine who this is
+        userId = general.extractUserId(request);
+        // console.log('userId', userId)
+        userInfo = knownUsers[userId];
+        if (!userInfo) {
+            userInfo = knownUsers[userId] = {
+                times: 1
+            };
+        }
+        console.log('userInfo', userInfo);
+
+        userRef = dbHelper.knownUsersRef.child(userId);
+
+        var times = userInfo.times || 1;
+        userRef.update({
+            last_access: now,
+            times: times
+        });
+        userInfo.last_access = now;
+        userInfo.times = times;
     }
 
     let actionMap = new Map();
@@ -433,6 +533,7 @@ function handlePost(request, response) {
 
     actionMap.set('get.verse', tellVerse);
     actionMap.set('get.date', tellDate);
+    actionMap.set('get.both', tellDateAndVerse);
     actionMap.set('get.date.full1', tellDateFull);
 
     actionMap.set('tell.again', tellAgain);
@@ -448,7 +549,33 @@ function handlePost(request, response) {
     actionMap.set('who_am_i', whoAmI);
     actionMap.set('user.list', tellUsers);
 
-    app.handleRequest(actionMap);
+    appV2.fallback((incomingConv) => {
+
+        // assign to global
+        conv = incomingConv;
+
+        conv.isDeepLink = conv.type === 'NEW';
+
+        getUserInfo();
+
+        console.log('User', conv.user);
+        console.log('Parameters', conv.parameters);
+        console.log('Data', conv.data);
+        console.log('Type', conv.type);
+        console.log('Device', conv.device);
+
+        const fn = actionMap.get(conv.action);
+        console.log(`Intent: ${conv.action} (${conv.intent}) --> ${fn.name}`);
+
+        if (fn) {
+            fn();
+            return;
+        }
+
+        conv.ask(`I couldn't understand. Can you say that again and again?`);
+    });
+
+    appV2(request, response);
 }
 
 

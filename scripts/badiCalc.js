@@ -27,6 +27,7 @@ function addSunTimes(profile, speech, text) {
     if (!coord) {
         general.addToBoth('Sorry. I don\'t know where you are, so can\'t tell you when sunset is.', speech, text);
     }
+    var location = profile.location;
 
     var zoneName = profile.zoneName;
     var nowTz = moment.tz(zoneName);
@@ -42,38 +43,21 @@ function addSunTimes(profile, speech, text) {
         var sun2 = sunCalc.getTimes(tomorrowNoonTz, coord.lat, coord.lng);
         var sunrise2Tz = moment.tz(sun2.sunrise, zoneName)
         var sunset2Tz = moment.tz(sun2.sunset, zoneName)
-        addSunTimesInternal(sunset1Tz, nowTz, sunrise2Tz, sunset2Tz, speech, text);
-
-        // speech.push(`Today's starting Sunset: ${sunset1Tz.format(readableFormat)}`);
-        // text.push(`Today's starting Sunset: ${sunset1Tz.format(readableFormat)}`);
-
-        // if (nowTz.isBefore(sunrise2Tz)) {
-        //     speech.push(`<break time="1s"/>Now: ${nowTz.format(readableFormat)}`);
-        //     text.push(`\nNow: ${nowTz.format(readableFormat)}`);
-        //     speech.push(`<break time="1s"/>Sunrise: ${sunrise2Tz.format(readableFormat)}`);
-        //     text.push(`\nSunrise: ${sunrise2Tz.format(readableFormat)}`);
-        // } else {
-        //     speech.push(`<break time="1s"/>Sunrise: ${sunrise2Tz.format(readableFormat)}`);
-        //     text.push(`\nSunrise: ${sunrise2Tz.format(readableFormat)}`);
-        //     speech.push(`<break time="1s"/>Now: ${nowTz.format(readableFormat)}`);
-        //     text.push(`\nNow: ${nowTz.format(readableFormat)}`);
-        // }
-        // speech.push(`<break time="1s"/>Today's ending sunset: ${sunset2Tz.format(readableFormat)}`);
-        // text.push(`\nToday's ending sunset: ${sunset2Tz.format(readableFormat)}`);
+        addSunTimesInternal(location, sunset1Tz, nowTz, sunrise2Tz, sunset2Tz, speech, text);
 
     } else {
         // get prior sunset
         var sun0 = sunCalc.getTimes(moment(noonTz).subtract(24, 'hours'), coord.lat, coord.lng);
         var sunset0 = moment.tz(sun0.sunset, zoneName)
 
-        addSunTimesInternal(sunset0, nowTz, sunrise1Tz, sunset1Tz, speech, text);
+        addSunTimesInternal(location, sunset0, nowTz, sunrise1Tz, sunset1Tz, speech, text);
     }
 }
 
-function addSunTimesInternal(sunsetStart, now, sunrise, sunset, speech, text) {
+function addSunTimesInternal(location, sunsetStart, now, sunrise, sunset, speech, text) {
     var readableFormat = 'MMMM D, h:mm a';
 
-    speech.push(`<break time="1s"/>Today's starting sunset was: ${sunsetStart.format(readableFormat)}`);
+    speech.push(`<break time="1s"/>Today's starting sunset in ${location} was: ${sunsetStart.format(readableFormat)}`);
     text.push(`Today's starting sunset was: ${sunsetStart.format(readableFormat)}`);
     if (now.isBefore(sunrise)) {
         speech.push(`<break time="1s"/>Now: ${now.format(readableFormat)}`);
@@ -165,7 +149,7 @@ function makeDi(nowTz, bDateInfo, coord, useArNames) {
     //     };
     // }
 
-    // split the Baha'i day to be "Eve" - sunset to midnight; 
+    // split the Baha'i day to be "Eve" - sunset to midnight;
     // and "Morn" - from midnight through to sunset
     var frag1Noon = new Date(currentTime.getTime());
     frag1Noon.setHours(12, 0, 0, 0);
@@ -227,7 +211,7 @@ function makeDi(nowTz, bDateInfo, coord, useArNames) {
         bEraAbbrev: getMessage('eraAbbrev'),
         bEraShort: getMessage('eraShort'),
 
-        stamp: JSON.stringify(bNow) // used to compare to other dates and for developer reference 
+        stamp: JSON.stringify(bNow) // used to compare to other dates and for developer reference
     };
 
     di.bDayNamePri = useArNames ? di.bDayNameAr : di.bDayMeaning;
@@ -1403,7 +1387,7 @@ function fillDatePresets() {
     };
 
 
-    // =============================================================  
+    // =============================================================
     // table of Twin Holy birthday dates
     _twinHolyBirthdays = {
         // first of the two days, in Badi date code

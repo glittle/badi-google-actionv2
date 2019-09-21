@@ -16,8 +16,8 @@ function getOrdinal(num) {
 }
 
 function addToBoth(s, speech, text) {
-    speech.push(s);
     text.push(s);
+    speech.push(s.replace(/Badíʿ/g, 'Badi'));
 }
 
 function getLocationInfo(userRef, userInfo) {
@@ -47,16 +47,24 @@ function getLocationInfo(userRef, userInfo) {
 }
 
 
-function extractUserId(app, request) {
+function extractUserId(request) {
     var id = '';
-    if (app.isInSandbox()) {
+    // console.log('BODY');
+    const body = request.body;
+    // console.log(JSON.stringify(body));
+    const payload = body.originalDetectIntentRequest.payload;
+    // console.log(JSON.stringify(payload));
+    // console.log('USER');
+    // console.log(JSON.stringify(payload.user));
+    if (payload.isInSandbox) {
         id = 'sandbox';
     } else {
-        id = ((app.getUser() || {}).userId || request.body.sessionId);
+        id = ((payload.user || {}).userId || body.sessionId);
         if (id.substr(0, 3) === '150') {
             id = 'sandbox'
         }
     }
+    console.log('USERID: ', id);
     return encodeAsFirebaseKey(id);
 }
 
@@ -69,9 +77,9 @@ function cleanVerseForSpeech(text) {
 var _nextFilledWithEach_UsesExactMatchOnly = false;
 String.prototype.filledWith = function() {
     /// <summary>Similar to C# String.Format...  in two modes:
-    /// 1) Replaces {0},{1},{2}... in the string with values from the list of arguments. 
-    /// 2) If the first and only parameter is an object, replaces {xyz}... (only names allowed) in the string with the properties of that object. 
-    /// Notes: the { } symbols cannot be escaped and should only be used for replacement target tokens;  only a single pass is done. 
+    /// 1) Replaces {0},{1},{2}... in the string with values from the list of arguments.
+    /// 2) If the first and only parameter is an object, replaces {xyz}... (only names allowed) in the string with the properties of that object.
+    /// Notes: the { } symbols cannot be escaped and should only be used for replacement target tokens;  only a single pass is done.
     /// </summary>
 
     var values = typeof arguments[0] === 'object' && arguments.length === 1 ? arguments[0] : arguments;
@@ -169,7 +177,7 @@ function quoteattr(s, preserveCr) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         /*
-        You may add other replacements here for HTML only 
+        You may add other replacements here for HTML only
         (but it's not necessary).
         Or for XML, only if the named entities are defined in its DTD.
         */

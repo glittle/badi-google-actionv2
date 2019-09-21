@@ -24,10 +24,16 @@ expressApp.get('/*', function(request, response) {
     response.send('Hello from V2 at ' + new Date().toLocaleString());
 });
 
-// main incoming call
-expressApp.post('/', function(request, response) {
-    main.handlePost(request, response);
-});
+try {
+    // main incoming call
+    expressApp.post('/', function(request, response) {
+        console.log('post')
+        return main.handlePost(request, response);
+    });
+} catch (error) {
+    console.log(error);
+}
+
 
 // Start the server
 let server = expressApp.listen(expressApp.get('port'), function() {
