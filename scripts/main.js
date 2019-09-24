@@ -179,7 +179,7 @@ function handlePost(request, response) {
 
     function tellAgain() {
         var repeatNum = +conv.parameters.repeatNum || 1;
-        console.log('last', repeatNum, userInfo.lastRequest);
+        // console.log('last', repeatNum, userInfo.lastRequest);
         var lastTopic = userInfo.lastRequest || 'verse';
         tell(lastTopic, true, repeatNum);
     }

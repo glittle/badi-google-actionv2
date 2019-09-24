@@ -32,15 +32,21 @@ function addFeastTimes(userInfo, useArNames, speech, text) {
 
     if (di.bDay === 1) {
         // today is Feast day!
-        speech.push(`Today is the Feast of ${di.bMonthNamePri} (${di.bMonthNameSec}).`);
+        speech.push(`Today is the Feast of ${di.bMonthNamePri} (${di.bMonthNameSec}).`.replace(/[`’ʿ]/g, ''));
         text.push(`Today is the Feast of ${di.bMonthNamePri} (${di.bMonthNameSec}).\n`);
         addSunTimes2(`The`, userInfo, 0, speech, text);
     } else {
         var daysAway = 20 - di.bDay;
+        console.log(di.bDay, daysAway);
         nowTz = moment.tz(zoneName).add(daysAway, 'days');
+        bDateInfo = getBDateInfo(nowTz, coord, zoneName);
         di = makeDi(nowTz, bDateInfo, coord, useArNames);
-        var days = daysAway === 1 ? 'tomorrow' : `in ${daysAway} days`;
-        speech.push(`The next Feast is ${days}. It is the Feast of ${di.bMonthNamePri} (${di.bMonthNameSec}).`);
+
+        var daysUntil = daysAway - 1;
+        var days = daysUntil === 0 ? 'this evening' : (daysUntil === 1 ? `tomorrow` : `in ${daysUntil} days`);
+        console.log(daysUntil, days);
+
+        speech.push(`The next Feast is ${days}. It is the Feast of ${di.bMonthNamePri} (${di.bMonthNameSec}).`.replace(/[`’ʿ]/g, ''));
         text.push(`The next Feast is ${days}.\nIt is the Feast of ${di.bMonthNamePri} (${di.bMonthNameSec}).\n`);
         addSunTimes2(`It's`, userInfo, daysAway, speech, text);
     }
@@ -86,35 +92,37 @@ function addSunTimes2(whatDay, userInfo, daysAway, speech, text) {
 }
 
 function addSunTimesInternal(whatDay, now, location, sunsetStart, timeInDay, sunrise, sunset, speech, text) {
-    var readableFormat = 'h:mm a on dddd, MMMM D';
+    const timeAndDate = 'h:mm a on dddd, MMMM D';
+    const noDate = 'h:mm a on dddd';
+    const timeOnly = 'h:mm a';
 
     if (now.isBefore(sunsetStart) || timeInDay.isBefore(sunsetStart)) {
-        speech.push(`<break time="1s"/>${whatDay} starting sunset in ${location} will be at ${sunsetStart.format(readableFormat)}.`);
-        text.push(`${whatDay} starting sunset in ${location} will be at ${sunsetStart.format(readableFormat)}.`);
+        speech.push(`<break time="1s"/>${whatDay} starting sunset in ${location} will be around ${sunsetStart.format(timeAndDate)}.`);
+        text.push(`${whatDay} starting sunset in ${location} will be around ${sunsetStart.format(timeAndDate)}.`);
     } else {
-        speech.push(`<break time="1s"/>${whatDay} starting sunset in ${location} was at ${sunsetStart.format(readableFormat)}.`);
-        text.push(`${whatDay} starting sunset in ${location} was at ${sunsetStart.format(readableFormat)}.`);
+        speech.push(`<break time="1s"/>${whatDay} starting sunset in ${location} was around ${sunsetStart.format(timeAndDate)}.`);
+        text.push(`${whatDay} starting sunset in ${location} was around ${sunsetStart.format(timeAndDate)}.`);
     }
 
     var showNow = now.isAfter(sunsetStart);
 
     if (timeInDay.isBefore(sunrise) || !showNow) {
         if (showNow) {
-            speech.push(`<break time="1s"/>It is now ${timeInDay.format(readableFormat)}.`);
-            text.push(`\nIt is now ${timeInDay.format(readableFormat)}.`);
+            speech.push(`<break time="1s"/>It is now ${timeInDay.format(timeAndDate)}.`);
+            text.push(`\nIt is now ${timeInDay.format(timeAndDate)}.`);
         }
-        speech.push(`<break time="1s"/>Sunrise will be at ${sunrise.format(readableFormat)}.`);
-        text.push(`\nSunrise will be at ${sunrise.format(readableFormat)}.`);
+        speech.push(`<break time="1s"/>Sunrise will be around ${sunrise.format(timeOnly)}.`);
+        text.push(`\nSunrise will be around ${sunrise.format(timeOnly)}.`);
     } else {
-        speech.push(`<break time="1s"/>Sunrise was at ${sunrise.format(readableFormat)}.`);
-        text.push(`\nSunrise was at ${sunrise.format(readableFormat)}.`);
-        speech.push(`<break time="1s"/>It is now ${timeInDay.format(readableFormat)}.`);
-        text.push(`\nIt is now ${timeInDay.format(readableFormat)}.`);
+        speech.push(`<break time="1s"/>Sunrise was around ${sunrise.format(timeOnly)}.`);
+        text.push(`\nSunrise was around ${sunrise.format(timeOnly)}.`);
+        speech.push(`<break time="1s"/>It is now ${timeInDay.format(timeAndDate)}.`);
+        text.push(`\nIt is now ${timeInDay.format(timeAndDate)}.`);
     }
 
     // dates are always today or the future, never past
-    speech.push(`<break time="1s"/>${whatDay} ending sunset will be at ${sunset.format(readableFormat)}.`);
-    text.push(`\n${whatDay} ending sunset will be at ${sunset.format(readableFormat)}.`);
+    speech.push(`<break time="1s"/>${whatDay} ending sunset will be around ${sunset.format(timeAndDate)}.`);
+    text.push(`\n${whatDay} ending sunset will be around ${sunset.format(timeAndDate)}.`);
 
 }
 
@@ -474,6 +482,9 @@ function addTodayInfoToAnswers(userInfo, speech, text) {
 
 
 var getBDateInfo = function(nowTz, coord, zoneName) {
+    if (!coord) {
+        general.addToBoth('Sorry. I don\'t know where you are, so can\'t tell you when sunset is.', speech, text);
+    }
 
     var noonTz = moment(nowTz).hour(12).minute(0).second(0);
 
