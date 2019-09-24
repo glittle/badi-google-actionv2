@@ -1,3 +1,4 @@
+const uuidv4 = require('uuid/v4');
 const externalInfo = require('./externalInfo');
 //const timezonedb = require('timezonedb-node')(process.env.timeZoneKey);
 
@@ -47,31 +48,36 @@ function getLocationInfo(userRef, userInfo) {
 }
 
 
-function extractUserId(request) {
-    var id = '';
-    // console.log('BODY');
-    const body = request.body;
-    // console.log(JSON.stringify(body));
-    const payload = body.originalDetectIntentRequest.payload;
-    // console.log(JSON.stringify(payload));
-    // console.log('USER');
-    // console.log(JSON.stringify(payload.user));
-    if (payload.isInSandbox) {
-        id = 'sandbox';
-    } else {
-        id = ((payload.user || {}).userId || body.sessionId);
-        if (id.substr(0, 3) === '150') {
-            id = 'sandbox'
-        }
-    }
-    console.log('USERID: ', id);
-    return encodeAsFirebaseKey(id);
-}
+// function extractUserId(request) {
+//     var id = '';
+//     // console.log('BODY');
+//     const body = request.body;
+//     // console.log(JSON.stringify(body));
+//     const payload = body.originalDetectIntentRequest.payload;
+//     // console.log(JSON.stringify(payload));
+//     // console.log('USER');
+//     // console.log(JSON.stringify(payload.user));
+//     if (payload.isInSandbox) {
+//         id = 'sandbox';
+//     } else {
+//         console.log('USER', payload.user);
+//         id = ((payload.user || {}).userId || body.sessionId);
+//         if (id.substr(0, 3) === '150') {
+//             id = 'sandbox'
+//         }
+//     }
+//     console.log('USERID: ', id);
+//     return encodeAsFirebaseKey(id);
+// }
 
 function cleanVerseForSpeech(text) {
     return text
         .replace(/\. \. \. /g, ' ')
         .replace(/\.\.\./g, ' ');
+}
+
+function makeUserId() {
+    return 'id' + uuidv4().replace(/-/g, '');
 }
 
 var _nextFilledWithEach_UsesExactMatchOnly = false;
@@ -203,8 +209,9 @@ String.prototype.filledWithEach = function(arr) {
 
 module.exports = {
     getLocationInfo,
-    extractUserId,
+    // extractUserId,
     getOrdinal,
+    makeUserId,
     cleanVerseForSpeech,
     addToBoth
 };

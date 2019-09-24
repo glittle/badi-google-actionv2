@@ -1,10 +1,10 @@
 {
-    "name": "hello-action",
-    "description": "Actions SDK sample for Google App Engine",
+    "name": "badi-today",
+    "description": "Fullfilment for the Badi Today Action",
     "version": "0.0.1",
     "private": true,
     "license": "Apache-2.0",
-    "author": "Google Inc.",
+    "author": "Glen Little",
     "engines": {
         "node": "~4.2"
     },
@@ -33,7 +33,8 @@
         "firebase-admin": "^8.5.0",
         "moment": "^2.24.0",
         "moment-timezone": "^0.5.26",
-        "node-rest-client": "^3.1.0"
+        "node-rest-client": "^3.1.0",
+        "uuid": "^3.3.3"
     },
     "devDependencies": {
         "semistandard": "^14.1.0"

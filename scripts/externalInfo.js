@@ -2,7 +2,7 @@
 
 const Client = require('node-rest-client').Client;
 
-function getTimezoneInfo(userRef, userInfo) {
+function getTimezoneInfo(userRef, userId, userInfo) {
     var coord = userInfo.coord;
 
     // refernce https://timezonedb.com/references/get-time-zone
@@ -21,12 +21,16 @@ function getTimezoneInfo(userRef, userInfo) {
 
     console.log('timezonedb query', query);
 
-    caller.get(host + query, function (data, response) {
-        // parsed response body as js object 
+    caller.get(host + query, function(data, response) {
+        // parsed response body as js object
         console.log('timezonedb', data);
 
         userInfo.zoneName = data.zoneName;
-        userRef.update({ zoneName: data.zoneName });
+        if (userId) {
+            userRef.update({
+                zoneName: data.zoneName
+            });
+        }
     });
 }
 
@@ -38,7 +42,7 @@ function getLocationName(userRef, userInfo) {
 
     console.log('Determining name')
 
-    caller.get(url, function (data, response) {
+    caller.get(url, function(data, response) {
         // console.log('maps', data)
 
         var results = data.results;
@@ -64,15 +68,17 @@ function getLocationName(userRef, userInfo) {
         console.log('==> ', location);
 
         userInfo.location = location;
-        userRef.update({ location: location });
+        userRef.update({
+            location: location
+        });
     });
 
 }
 
 function toQueryString(obj) {
     return Object.keys(obj).map(k => {
-        return encodeURIComponent(k) + "=" + encodeURIComponent(obj[k])
-    })
+            return encodeURIComponent(k) + "=" + encodeURIComponent(obj[k])
+        })
         .join("&");
 }
 

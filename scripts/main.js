@@ -56,10 +56,10 @@ function handlePost(request, response) {
 
     console.log('\r\n\r\n---------------------------');
     console.log('------ incoming POST ------');
-    console.log(`---${now.toLocaleTimeString()}---`);
-    console.log('request body:');
-    console.log(util.inspect(request.body));
-    console.log('---------------------------');
+    console.log(`------ ${now.toLocaleTimeString()} ---`);
+    // console.log('request body:');
+    // console.log(util.inspect(request.body));
+    // console.log('---------------------------');
     // return;
     // appV2.intent('Welcome', (conv, { name }) => {
     //     conv.ask(`How are you?`);
@@ -112,7 +112,8 @@ function handlePost(request, response) {
         if (!userInfo || !userInfo.coord) {
             // conv.askForPermission('Hello! Welcome to the "Badíʿ Calendar"!  Before we get started, to give you correct answers, ', conv.SupportedPermissions.DEVICE_PRECISE_LOCATION);
             conv.ask(new Permission({
-                context: 'Hello! Welcome to the "Badíʿ Calendar"!  Before we get started, to give you correct answers, ',
+                // need split speech/text
+                context: 'Hello from "Badi Today"!  Before we get started, to know when sunset is in your area, ',
                 permissions: 'DEVICE_PRECISE_LOCATION'
             }));
             return;
@@ -124,6 +125,34 @@ function handlePost(request, response) {
         ], [
             'Alláh-u-Abhá! What would you like to hear?\n\nSay "help" if you would like some tips!'
         ]);
+    }
+
+    function tellSunset() {
+        var speech = [];
+        var text = [];
+        var daysAway = 0;
+
+        badiCalc.addSunTimes(userInfo, speech, text);
+
+        ask(speech, text, conv.isDeepLink);
+
+        if (conv.isDeepLink) {
+            conv.close();
+        }
+    }
+
+    function tellFeast() {
+        var speech = [];
+        var text = [];
+        var useArNames = conv.parameters.language === 'arabic';
+
+        badiCalc.addFeastTimes(userInfo, useArNames, speech, text);
+
+        ask(speech, text, conv.isDeepLink);
+
+        if (conv.isDeepLink) {
+            conv.close();
+        }
     }
 
     function tellVerse() {
@@ -147,30 +176,12 @@ function handlePost(request, response) {
         badiCalc.addTodayDetails(useArNames, userInfo, speech, text);
         ask(speech, text);
     }
-    // function tellAnswer() {
-    //     let topic = app.getArgument('topic');
-
-    //     // console.log('body', request.body)
-    //     // console.log('data', request.body.originalRequest ? request.body.originalRequest.data : '-')
-
-    //     var sessionId = request.body.sessionId;
-    //     // console.log('session', sessionId);
-
-    //     // console.log('getDateTime', app.getDateTime())
-    //     // console.log('isInSandbox', app.isInSandbox())
-    //     // console.log('getSurfaceCapabilities', app.getSurfaceCapabilities())
-    //     // console.log('getInputType', app.getInputType())
-    //     // console.log('getDeliveryAddress', app.getDeliveryAddress())
-    //     // console.log('result.contacts', app.getDeliveryAddress())
-
-    //     tell(topic);
-    // }
 
     function tellAgain() {
-        var repeatNum = +conv.parameters.repeatNum || 1
+        var repeatNum = +conv.parameters.repeatNum || 1;
         console.log('last', repeatNum, userInfo.lastRequest);
         var lastTopic = userInfo.lastRequest || 'verse';
-        tell(lastTopic, true, repeatNum)
+        tell(lastTopic, true, repeatNum);
     }
 
     function tell(topic, again, repeatNum) {
@@ -192,7 +203,7 @@ function handlePost(request, response) {
         }
         if (topic === 'both') {
             speech.push('<break time="2s"/>');
-            text.push('\n')
+            text.push('\n');
         }
         if (topic === 'verse' || topic === 'both') {
             var now = moment.tz(userInfo.zoneName);
@@ -203,11 +214,11 @@ function handlePost(request, response) {
                 for (var r = 0; r < repeatNum; r++) {
                     if (r > 0) {
                         speech.push('<break time="5s"/>');
-                        text.push('\n  \n  \n')
+                        text.push('\n  \n  \n');
                     }
                     if (r > 0 || repeatNum > 1) {
-                        speech.push(`<say-as interpret-as="ordinal">${r + 1}</say-as>`)
-                        text.push(`${r + 1}:\n`)
+                        speech.push(`<say-as interpret-as="ordinal">${r + 1}</say-as>`);
+                        text.push(`${r + 1}:\n`);
                         speech.push('<break time="1s"/>');
                     }
                     speech.push(voiceEnd);
@@ -274,12 +285,36 @@ function handlePost(request, response) {
 
         speech = speech.join(' ');
         text = text.join(' ');
-        conv.ask(new SimpleResponse({
-            speech: '<speak>' + speech + '</speak>',
-            text: text
-        }));
+
         console.log('Text', text);
         console.log('Speech', speech);
+        const maxAnswerLength = 640;
+
+        if (text.length > maxAnswerLength) {
+            while (text.length > maxAnswerLength) {
+                // find 2nd last space...
+                var space = text.lastIndexOf(' ', text.lastIndexOf(' ', maxAnswerLength) - 1);
+                var part1 = text.substring(0, space);
+                text = text.substring(space + 1);
+                if (speech) {
+                    conv.ask(new SimpleResponse({
+                        speech: '<speak>' + speech + '</speak>',
+                        text: part1
+                    }));
+                    speech = null;
+                } else {
+                    conv.ask(part1);
+                }
+            }
+            if (text) {
+                conv.ask(text);
+            }
+        } else {
+            conv.ask(new SimpleResponse({
+                speech: '<speak>' + speech + '</speak>',
+                text: text
+            }));
+        }
     }
 
     function addWhatElse(speech, text) {
@@ -293,12 +328,13 @@ function handlePost(request, response) {
         var max = msgs.length;
         var msg = msgs[Math.floor(Math.random() * (max - 1))];
 
-        speech.push('<break time="2s"/>' + msg);
+        speech.push('<break time="1s"/>' + msg);
         text.push('\n\n' + msg);
     }
 
     function receiveLocation() {
         const location = conv.device.location;
+        let userInfo = userId ? knownUsers[userId] : {}; // if not known, use dummy object
         if (location) {
             /*
                Device {
@@ -313,31 +349,33 @@ function handlePost(request, response) {
                 lng: coordRaw.longitude
             };
 
-            let userInfo = knownUsers[userId];
             userInfo.coord = coord;
-            userInfo.location = location.city;
-            userRef.update(userInfo);
+            userInfo.location = location.city || '';
 
-            externalInfo.getTimezoneInfo(userRef, userInfo);
-            // externalInfo.getLocationName(userRef, userInfo);
+            externalInfo.getTimezoneInfo(userRef, userId, userInfo);
 
             let msg = [`Thank you! Google says you are in ${userInfo.location}. What would you like to hear now?  Say Help if you want to learn what I can do.`];
             askWithoutWhatElse(msg, msg);
 
         } else {
-            let userInfo = knownUsers[userId];
             let coord = {
                 lat: 32.8033872,
                 lng: 34.9858567
             };
             userInfo.coord = coord;
             userInfo.location = 'Haifa';
-            userRef.update(userInfo);
 
-            externalInfo.getTimezoneInfo(userRef, userInfo);
+            externalInfo.getTimezoneInfo(userRef, userId, userInfo);
 
             let msg = [`Okay. I'll give you answers as if you were in Haifa Israel! The fix that later, say "Change my location".`];
             askWithoutWhatElse(msg, msg);
+        }
+
+        if (userId) {
+            userRef.update({
+                coord: userInfo.coord,
+                location: userInfo.location
+            });
         }
     }
 
@@ -347,17 +385,21 @@ function handlePost(request, response) {
 
     function whoAmI() {
         //    <say-as interpret-as="characters">${spacedOut(userId)}</say-as>
-        var speech = [userId !== 'sandbox' ?
-            `Your user ID is ${spacedOut(userId)}<break time="2s"/> (Wow! That was quite a mouthful!)` :
-            `You are using the sandbox, you don't have an ID.`
+        var speech = [userId ?
+            userId !== 'sandbox' ?
+            `All I have is an ID of ${spacedOut(userId)} (Wow! That was quite a mouthful!)` :
+            `You are using the sandbox, you don't have a real ID.` :
+            `Sorry, I don't know who you are.`
         ];
 
-        var text = [userId !== 'sandbox' ?
-            `Your user ID is ${userId}.` :
-            `You are using the sandbox, you don't have an ID.`
+        var text = [userId ?
+            userId !== 'sandbox' ?
+            `All I have is an ID of ${userId}.` :
+            `You are using the sandbox, you don't have an ID.` :
+            `Sorry, I don't know who you are.`
         ];
 
-        ask(speech, text)
+        ask(speech, text);
     }
 
     function tellMonthNames() {
@@ -376,14 +418,14 @@ function handlePost(request, response) {
         general.addToBoth('Here are the names of the months in the Badíʿ Calendar:\n', speech, text);
         for (var i = 1; i < list.length; i++) {
             var item = list[i];
-            item = item.replace(/[`’]/g, '');
+            item = item.replace(/[`’ʿ]/g, '');
 
             speech.push(`${i}<break time="1s"/>`);
             text.push(`${i}: `);
 
             if (doBoth) {
                 // element is already in English
-                var ar = badiCalc.monthsArabic[i].replace(/[`’]/g, '');
+                var ar = badiCalc.monthsArabic[i].replace(/[`’ʿ]/g, '');
 
                 speech.push(`${ar} <break time=".5s"/> ${item}`);
                 text.push(`${ar} - ${item}\n`);
@@ -400,11 +442,13 @@ function handlePost(request, response) {
     }
 
     function resetLocation() {
-        var userInfo = knownUsers[userId];
-        delete userInfo.coord;
-        delete userInfo.location;
-        delete userInfo.zoneName;
-        userRef.set(userInfo);
+        if (userId) {
+            var userInfo = knownUsers[userId];
+            delete userInfo.coord;
+            delete userInfo.location;
+            delete userInfo.zoneName;
+            userRef.set(userInfo);
+        }
 
         conv.user.permissions = null;
 
@@ -432,7 +476,7 @@ function handlePost(request, response) {
             text.push(`You are in the ${userInfo.zoneName} timezone.`);
 
             var now = moment.tz(userInfo.zoneName);
-            var time = now.format('h:mm a')
+            var time = now.format('h:mm a');
 
             speech.push(`It is about <say-as interpret-as="time" format="hms12">${time}</say-as> right now.`);
             text.push(`It is about ${time} right now.`);
@@ -468,42 +512,58 @@ function handlePost(request, response) {
                 }
             }
         });
-        var array = [];
+        var array1 = [];
         Object.keys(locations).forEach(function(key) {
             var num = locations[key];
-            array.push(`${num} from ${key}`)
+            array1.push({
+                l: key,
+                num: num
+            });
         });
-        array.sort(function(a, b) {
-            if (a === somewhere) return 1;
-            return a <= b ? -1 : 1
+        array1.sort(function(a, b) {
+            return a.num > b.num ? -1 : 1;
         });
-        if (array.length > 1) {
-            array[array.length - 1] = 'and ' + array[array.length - 1];
+        var array2 = array1.map(x => x.num === 1 ? x.l : `${x.l} (${x.num} people)`);
+        if (array2.length > 1) {
+            array2[array2.length - 1] = 'and ' + array2[array2.length - 1];
         }
 
-        speech.push(`I've talked to ${Object.keys(knownUsers).length} people so far! ${array.join(', ')}.`);
+        speech.push(`I've talked to ${Object.keys(knownUsers).length} people so far from ${array2.length} locations: ${array2.join(', ')}.`);
 
-        text.push(`I've talked to ${Object.keys(knownUsers).length} people so far! \n${array.join('\n')}.`);
+        text.push(`I've talked to ${Object.keys(knownUsers).length} people so far from ${array2.length} locations! \n${array2.join('\n')}.`);
 
         ask(speech, text);
     }
 
-    function tellSunset() {
-        var speech = [];
-        var text = [];
-
-        badiCalc.addSunTimes(userInfo, speech, text);
-
-        ask(speech, text, conv.isDeepLink);
-
-        if (conv.isDeepLink) {
-            conv.close();
-        }
-    }
-
     function getUserInfo() {
+
+        userId = conv.data.Id || conv.user.storage.Id || '';
+
+        if (!userId) {
+            var verified = conv.user.verification === 'VERIFIED';
+
+            if (verified) {
+                userId = general.makeUserId();
+                conv.user.storage.Id = userId;
+                conv.data.Id = userId;
+                console.log('New id: ', conv.user.storage.Id);
+            } else {
+                userId = '';
+            }
+        }
+
+        if (!userId) {
+            console.log('No id');
+            return;
+        }
+
+        // user.storage sometimes doesn't work
+        conv.data.Id = userId;
+
+        console.log('Using id: ', userId);
+
         // determine who this is
-        userId = general.extractUserId(request);
+        // userId = general.extractUserId(request);
         // console.log('userId', userId)
         userInfo = knownUsers[userId];
         if (!userInfo) {
@@ -515,44 +575,24 @@ function handlePost(request, response) {
 
         userRef = dbHelper.knownUsersRef.child(userId);
 
-        var times = userInfo.times || 1;
-        userRef.update({
-            last_access: now,
-            times: times
-        });
+        var times = (userInfo.times || 1) + 1;
         userInfo.last_access = now;
         userInfo.times = times;
+
+        userRef.update({
+            times: times,
+            last_access: now
+        });
     }
 
     let actionMap = new Map();
-    actionMap.set('input.welcome', welcome);
-    actionMap.set('Welcome.Welcome-fallback', receiveLocation);
-
-    // actionMap.set('tell.answer', tellAnswer);
-    // actionMap.set('get_answer', tellAnswer);
-
-    actionMap.set('get.verse', tellVerse);
-    actionMap.set('get.date', tellDate);
-    actionMap.set('get.both', tellDateAndVerse);
-    actionMap.set('get.date.full1', tellDateFull);
-
-    actionMap.set('tell.again', tellAgain);
-
-    actionMap.set('get.names', tellMonthNames);
-
-    actionMap.set('change.location', resetLocation);
-    actionMap.set('Changelocation.Changelocation-fallback', receiveLocation);
-
-    actionMap.set('where.am.i', tellLocation);
-    actionMap.set('when.is.sunset', tellSunset);
-
-    actionMap.set('who_am_i', whoAmI);
-    actionMap.set('user.list', tellUsers);
 
     appV2.fallback((incomingConv) => {
 
         // assign to global
         conv = incomingConv;
+        console.log('User Storage', conv.user.storage);
+        console.log('Data', conv.data);
 
         conv.isDeepLink = conv.type === 'NEW';
 
@@ -560,9 +600,9 @@ function handlePost(request, response) {
 
         console.log('User', conv.user);
         console.log('Parameters', conv.parameters);
-        console.log('Data', conv.data);
-        console.log('Type', conv.type);
-        console.log('Device', conv.device);
+        // console.log('Type', conv.type);
+        // console.log('Device', conv.device);
+
 
         const fn = actionMap.get(conv.action);
         console.log(`Intent: ${conv.action} (${conv.intent}) --> ${fn.name}`);
@@ -575,10 +615,33 @@ function handlePost(request, response) {
         conv.ask(`I couldn't understand. Can you say that again and again?`);
     });
 
+
+    actionMap.set('input.welcome', welcome);
+    actionMap.set('Welcome.Welcome-fallback', receiveLocation);
+
+    actionMap.set('get.verse', tellVerse);
+    actionMap.set('get.date', tellDate);
+    actionMap.set('get.both', tellDateAndVerse);
+    actionMap.set('get.date.full1', tellDateFull);
+
+    actionMap.set('tell.again', tellAgain);
+
+    actionMap.set('get.names', tellMonthNames);
+    actionMap.set('get.feast', tellFeast);
+
+    actionMap.set('change.location', resetLocation);
+    actionMap.set('Changelocation.Changelocation-fallback', receiveLocation);
+
+    actionMap.set('where.am.i', tellLocation);
+    actionMap.set('when.is.sunset', tellSunset);
+
+    actionMap.set('who_am_i', whoAmI);
+    actionMap.set('user.list', tellUsers);
+
     appV2(request, response);
 }
 
 
 module.exports = {
     handlePost
-}
+};
